@@ -6,7 +6,7 @@
 local sokoban = {};
 sokoban.push_time = 0
 sokoban.blocks = 0;sokoban.level = 0; sokoban.moves=0;
-sokoban.load=0;sokoban.playername =""
+sokoban.load=0;sokoban.playername =""; sokoban.pos = {};
 local SOKOBAN_WALL = "games:stone_maze"
 local SOKOBAN_FLOOR = "default:stone"
 local SOKOBAN_GOAL = "default:tree"
@@ -71,7 +71,11 @@ minetest.register_node("games:crate", { -- block that player pushes around, basi
 		local name = player:get_player_name(); if name==nil then return end
 		if sokoban.blocks~=0 then
 			minetest.chat_send_player(name,"move " .. sokoban.moves .. " : " ..sokoban.blocks .. " crates left ");
-			else minetest.chat_send_all("#SOKOBAN : ".. name .. " just solved sokoban level ".. sokoban.level .. " in " .. sokoban.moves .. " moves.")
+			else 
+				minetest.chat_send_all("#SOKOBAN : ".. name .. " just solved sokoban level ".. sokoban.level .. " in " .. sokoban.moves .. " moves.");
+				local meta = minetest.get_meta(sokoban.pos);
+				meta:set_string("infotext", name .. " just solved sokoban level ".. sokoban.level .. " in " .. sokoban.moves .. " moves.");
+			
 			-- if playerdata~=nil then -- award xp if playerdata exist
 				-- playerdata[name].xp = playerdata[name].xp + (sokoban.level-0.5)*100
 			-- end
@@ -95,7 +99,7 @@ description = "sokoban crate",
 		local form  = 
 		"size[3,1]" ..  -- width, height
 		"field[0,0.5;3,1;level;enter level 1 to 90;1]"..
-		"button[2.5,0.25;1,1;play;OK]"
+		"button[2.5,0.25;1,1;OK;OK]"
 		meta:set_string("formspec", form)
 		meta:set_string("infotext","sokoban level loader, right click to select level")
 		meta:set_int("time", minetest.get_gametime()-300);
@@ -105,35 +109,31 @@ description = "sokoban crate",
 		local privs = minetest.get_player_privs(name); 
 		if not privs.ban then return end
 		local meta = minetest.get_meta(pos)
-		local t = minetest.get_gametime(); meta:set_int("time", t-500)		
-		minetest.chat_send_all("Sokoban loader reset. Load level now.")
+		minetest.chat_send_player(name,"Sokoban loader reset. Load level now.")
 	end,
 	on_receive_fields = function(pos, formname, fields, sender) 
 		local name = sender:get_player_name(); if name==nil then return end
 		local privs = minetest.get_player_privs(name); 
+
+		if fields.OK ~= "OK" then return end
 		
 		local meta = minetest.get_meta(pos)
-		local t = minetest.get_gametime();local t_old = meta:get_int("time");
-		if not privs.ban then 
-			if name~=sokoban.playername then
-				if t-t_old<300 then 
-					minetest.chat_send_player(name,"Wait at least 5 minutes to load next level. "..300-(t-t_old) .. " seconds left.");
-					return 
+		if not privs.kick and sokoban.playername~="" then 
+			local player = minetest.get_player_by_name(sokoban.playername)
+			if player and name~= sokoban.playername then
+				local ppos = player:getpos();
+				local dist = math.max(math.abs(pos.x-ppos.x),math.abs(pos.y-ppos.y),math.abs(pos.z-ppos.z));
+				if dist<32 then 
+					minetest.chat_send_player(name,sokoban.playername .. " is still playing. Wait until he is finished and then try again");
+					return
 				end
-			else
-				if t-t_old<60 then 
-					minetest.chat_send_player(name,"Wait at least 1 minute to load next level. "..60-(t-t_old) .. " seconds left.");
-					return 
-				end
-			end
+			end			
 		end
 		
-		--minetest.chat_send_all("formname " .. formname .. " fields " .. dump(fields))
-		
+		sokoban.pos = pos;
 		sokoban.playername = name
-		meta:set_int("time", t);
 		local lvl;
-		if fields.play ~= nil and tonumber(fields.level) ~=nil then			
+		if tonumber(fields.level) ~=nil then			
 			lvl = tonumber(fields.level)-1 
 		end
 		if lvl == nil then return end

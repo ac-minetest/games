@@ -71,10 +71,10 @@ end
 
 minetest.register_node("games:life", {
 	description = "game of life, game field is 1 above ",
-	inventory_image = "pipeworks_red.png",
-	wield_image = "pipeworks_red.png",
+	inventory_image = "default_tree.png",
+	wield_image = "default_tree.png",
 	wield_scale = {x=0.8,y=2.5,z=1.3},
-	tiles = {"pipeworks_red.png"},
+	tiles = {"default_tree.png"},
 	stack_max = 1,
 	groups = {oddly_breakable_by_hand=3},
 	
