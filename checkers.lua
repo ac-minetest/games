@@ -10,6 +10,7 @@ checkers.piece_pos = {} -- position of pick up piece
 local function draw_board() -- pos is bottom left position of checkerboard
 	
 	local pos = checkers.pos;
+	if pos == nil then return end
 	local node;
 	for i = 1,8 do
 		for j =1,8 do
