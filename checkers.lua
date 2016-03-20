@@ -104,7 +104,7 @@ description = "checkers crate",
 			return 
 		end
 		
-		if startgame == 1 then 
+		if startgame == 1 or state == 1 then 
 			meta:set_int("state",1); 
 			meta:set_string("infotext", "game of checkers started. players " .. name1 .. " and " .. name2);
 			checkers.pos = {x = pos.x+1, y=pos.y, z=pos.z+1}
