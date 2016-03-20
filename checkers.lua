@@ -58,14 +58,57 @@ description = "checkers crate",
 	sounds = default.node_sound_wood_defaults(),
 	on_construct = function(pos)
 		local meta = minetest.get_meta(pos)
-		meta:set_string("infotext","checkers game block, admin only")
+		meta:set_string("infotext","checkers game block, punch to start game")
 		meta:set_int("time", minetest.get_gametime());
+		meta:set_string("player1","");meta:set_string("player2","");
+		meta:set_int("state",0); -- state 0 : waiting for players 1: active game
 		checkers.pos = {x = pos.x+1, y=pos.y-1, z=pos.z+1}
 	end, 
 	on_punch = function(pos, node, player)
 		local name = player:get_player_name(); if name==nil then return end
-		local privs = minetest.get_player_privs(name); 
-		if not privs.kick then return end -- only admin
+		local meta = minetest.get_meta(pos);
+		local state = meta:get_int("state");
+		local name1 = meta:get_string("player1")
+		local name2 = meta:get_string("player2")
+		
+		if state == 1 then
+			local player1 = minetest.get_player_by_name(name1)
+			local player2 = minetest.get_player_by_name(name2)
+			local endgame = 0;
+			if not player1 or not player2 then endgame = 1 end
+			
+			if endgame == 0 then 
+				local p = player1:getpos(); 
+				local dist = math.abs(p.x-pos.x)+math.abs(p.y-pos.y)+math.abs(p.z-pos.z);
+				if dist>32 then endgame = 1 end
+				p = player2:getpos();
+				dist = math.abs(p.x-pos.x)+math.abs(p.y-pos.y)+math.abs(p.z-pos.z);
+				if dist>16 then endgame = 1 end
+			end
+			
+			if endgame == 1 then 
+				meta:set_int("state",0); meta:set_string("infotext", "checkers waiting for players, punch block to sign up.");
+				meta:set_string("player1","");meta:set_string("player2","");
+				return 
+			end
+		end
+		
+		local startgame = 0;
+		if name1=="" then 
+			meta:set_string("player1",name); name1 = name; if name2~="" then startgame = 1;end	
+		elseif name2=="" then 
+			meta:set_string("player2",name); name2 = name; if name1~="" then startgame = 1;end
+		end
+				
+		if startgame == 0 and name~=name1 and name~=name2 then 
+			return 
+		end
+		
+		if startgame == 1 then 
+			meta:set_int("state",1); 
+			meta:set_string("infotext", "game of checkers started. players " .. name1 .. " and " .. name2);
+		end
+		
 		checkers.pos = {x = pos.x+1, y=pos.y, z=pos.z+1}
 		draw_board()
 	end
@@ -112,20 +155,31 @@ function register_board(name,desc,tiles)
 			on_punch = function(pos, node, player) -- place piece on board
 					local name = player:get_player_name(); if name == nil then return end
 					if checkers.pos.x == nil then minetest.chat_send_player(name,"punch checkers game block before playing.") return end
+					
+					local meta = minetest.get_meta({x=checkers.pos.x-1,y=checkers.pos.y,z=checkers.pos.z-1}); local state = meta:get_int("state");
+					if state ~= 1 then minetest.chat_send_player(name,"punch checkers game block before playing.") return end
+					local name1 = meta:get_string("player1");local name2 = meta:get_string("player2");
+					if name~=name1 and name~=name2 then return end
+					
 					if checkers.piece == "" then return end
 					local t = minetest.get_gametime(); if t-checkers.time <1 then return end; checkers.time = t;
 					local above = {x=pos.x,y=pos.y+1;z=pos.z};
 					local x,y; x= above.z-checkers.pos.z+1; y=above.x-checkers.pos.x+1;
 					minetest.set_node(above, {name = checkers.piece});
 					
-					minetest.chat_send_all(
-					"#CHECKERS : " .. name .." moved: ".. checkers.piece_pos.z-checkers.pos.z+1 .. "," .. checkers.piece_pos.x-checkers.pos.x+1 .. " to " ..
-					x .. "," .. y )
+					local text = "#CHECKERS : " .. name .." moved: ".. checkers.piece_pos.z-checkers.pos.z+1 .. "," .. checkers.piece_pos.x-checkers.pos.x+1 .. " to " ..
+					x .. "," .. y;
+					
+					minetest.chat_send_player(name1,text);minetest.chat_send_player(name2,text);
 					checkers.piece = ""
 			end,
 			on_rightclick = function(pos, node, player, itemstack, pointed_thing) -- capture piece 
 				local name = player:get_player_name(); if name == nil then return end
 					if checkers.pos.x == nil then minetest.chat_send_player(name,"punch checkers game block before playing.") return end
+					local meta = minetest.get_meta({x=checkers.pos.x-1,y=checkers.pos.y, z=checkers.pos.z-1}); local state = meta:get_int("state");
+					if state ~= 1 then minetest.chat_send_player(name,"punch checkers game block before playing.") return end
+					local name1 = meta:get_string("player1");local name2 = meta:get_string("player2");
+					if name~=name1 and name~=name2 then return end
 					if checkers.piece == "" then return end
 					minetest.chat_send_all(name .." captured piece at ".. checkers.piece_pos.z-checkers.pos.z+1 .. ","..checkers.piece_pos.x-checkers.pos.x+1)
 					checkers.piece = "" return 
@@ -136,7 +190,13 @@ end
 
 local piece_punch  = function(pos, node, player) -- pick up piece
 	local name = player:get_player_name(); if name == nil then return end
-	if checkers.pos.x == nil then minetest.chat_send_player(name,"punch checkers game block before playing (need kick priv).") return end
+	if checkers.pos.x == nil then minetest.chat_send_player(name,"punch checkers game block before playing.") return end
+	
+	local meta = minetest.get_meta({x=checkers.pos.x-1,y=checkers.pos.y,z=checkers.pos.z-1}); local state = meta:get_int("state");
+	if state ~= 1 then minetest.chat_send_player(name,"punch checkers game block before playing.") return end
+	local name1 = meta:get_string("player1");local name2 = meta:get_string("player2");
+	if name~=name1 and name~=name2 then return end
+	
 	if checkers.piece~="" then return end -- dont pick up another piece before last one was put down
 	
 	local t = minetest.get_gametime(); if t-checkers.time <1 then return end; checkers.time = t;
