@@ -53,6 +53,7 @@ description = "minesweeper",
 			meta:set_int("height",height);
 			meta:set_int("count", count);
 			meta:set_string("infotext", "minesweeper game set. punch block to start game.")
+
 		end
 	end,
       
@@ -216,7 +217,7 @@ local punch_minesweep = function(pos, node, puncher, pointed_thing)
 				minesweeper.games[pname]=nil; -- end game
 				return
 			end
-			minetest.set_node(pos,{name = "default:dirt_with_grass"})
+			minetest.swap_node(pos,{name = "default:dirt_with_grass"})
 		end
 		
 		
