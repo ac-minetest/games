@@ -118,7 +118,9 @@ description = "minesweeper",
 				local table = minetest.registered_nodes[node.name];
 				if table and table.mesecons and table.mesecons.effector then 
 					local effector=table.mesecons.effector;
-					effector.action_on(pos,node,16) 
+					if effector.action_on then
+						effector.action_on(pos,node,16) 
+					end
 				end;
 				meta:set_string("infotext", name .. " just solved minesweeper level");
 				meta:set_string("player","");
@@ -223,6 +225,18 @@ local punch_minesweep = function(pos, node, puncher, pointed_thing)
 			local pname = gmeta:get_string("player");
 			minesweeper.games[name]=nil; -- end game
 			gmeta:set_string("player","");
+			
+			-- activates block below minesweeper game with OFF upon fail
+			gpos.y=gpos.y-1;
+			local node = minetest.get_node(gpos); if not node.name then return end -- error
+			local table = minetest.registered_nodes[node.name];
+			if table and table.mesecons and table.mesecons.effector then 
+				local effector=table.mesecons.effector;
+				if effector.action_off then 
+					effector.action_off(gpos,node,16) 
+				end
+			end;
+			
 			return
 		else
 			minetest.swap_node(pos,{name = "default:dirt_with_grass"})
