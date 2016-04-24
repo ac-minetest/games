@@ -191,17 +191,7 @@ local punch_minesweep = function(pos, node, puncher, pointed_thing)
 		end
 	
 		local meta = minetest.get_meta(pos);
-		local t0 = meta:get_int("t");
-		local t1 = minetest.get_gametime();
-		if t1-t0<1 then -- un/mark mine
-			if node.name == "games:dirt" then
-				minetest.swap_node(pos,{name = "games:markmine"})
-			else
-				minetest.swap_node(pos,{name = "games:dirt"})
-			end
-			return
-		end
-		 meta:set_int("t",t1);
+		
 		
 		local ppos = puncher:getpos(); -- player position
 		--dist = math.sqrt((ppos.x-pos.x)^2+(ppos.y-pos.y)^2+(ppos.z-pos.z)^2);
@@ -241,19 +231,36 @@ local punch_minesweep = function(pos, node, puncher, pointed_thing)
 		else
 			minetest.swap_node(pos,{name = "default:dirt_with_grass"})
 		end
-			
-		
-		
 		
 end
+
+local reveal_minesweep = function(pos, node, player, itemstack, pointed_thing)
+
+	-- local t0 = meta:get_int("t");
+	-- local t1 = minetest.get_gametime();
+	-- if t1-t0<1 then -- un/mark mine
+	if node.name == "games:dirt" then
+		minetest.swap_node(pos,{name = "games:markmine"})
+	else
+		minetest.swap_node(pos,{name = "games:dirt"})
+	end
+	--meta:set_int("t",t1);
+
+	end
+
+
+
+
+
+
 
 minetest.register_node("games:dirt", {
 	description = "Dirt with mines, punch from far to check for mines, stand near and punch to clear mine",
 	tiles = {"default_dirt.png"},
 	groups =  {immortal = 1},
 	sounds = default.node_sound_dirt_defaults(),
-	on_punch = punch_minesweep;
-	
+	on_punch = punch_minesweep,
+	on_rightclick = reveal_minesweep
 })
 
 minetest.register_node("games:markmine", {
@@ -261,5 +268,6 @@ minetest.register_node("games:markmine", {
 	tiles = {"default_lava.png"},
 	groups =  {immortal = 1},
 	sounds = default.node_sound_dirt_defaults(),
-	on_punch = punch_minesweep;
+	on_punch = punch_minesweep,
+	on_rightclick = reveal_minesweep
 });
