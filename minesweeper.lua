@@ -52,6 +52,8 @@ description = "minesweeper",
 			meta:set_int("width",width);
 			meta:set_int("height",height);
 			meta:set_int("count", count);
+			meta:set_string("player","");
+			meta:set_int("t",0); -- start of game
 			meta:set_string("infotext", "minesweeper game set. punch block to start game.")
 
 		end
@@ -93,6 +95,8 @@ description = "minesweeper",
 					mpos = {x=pos.x+i+1,y=pos.y,z=pos.z+j+1};
 					if minetest.get_node(mpos).name ~= "games:markmine" and minetest.get_meta(mpos):get_int("mine")==1 then -- FAIL
 						finished = false;
+					elseif minetest.get_node(mpos).name == "games:markmine" and minetest.get_meta(mpos):get_int("mine")==0 then
+						finished = false;
 					end
 					
 				end
@@ -100,9 +104,9 @@ description = "minesweeper",
 			
 			if not finished then
 			
-				minetest.chat_send_all("games: BOOM! ".. name .. " has failed to detect all the mines! ")  
+				minetest.chat_send_all("games: BOOM! ".. name .. " has failed to detect the mines properly ! ")  
 				if mpos then minetest.swap_node(mpos,{name = "default:cobble"}) end
-				minesweeper.games[pname]=nil; -- end game
+				minesweeper.games[name]=nil; -- end game
 				return;
 
 			else -- done
@@ -117,16 +121,17 @@ description = "minesweeper",
 					effector.action_on(pos,node,16) 
 				end;
 				meta:set_string("infotext", name .. " just solved minesweeper level");
+				meta:set_string("player","");
 				minesweeper.games[name]=nil;
 				return
 			end
 		end
 	
-		if not minesweeper.games[name] then -- no game yet, place mines
-			meta:set_string("player",name);
-			minesweeper.create_game(pos);
-			return
-		end
+		-- no game yet, place mines
+		meta:set_string("player",name);
+		minesweeper.create_game(pos);
+		return
+		
 	
 	end
 	}
@@ -163,7 +168,7 @@ minesweeper.create_game = function(pos)
 	local pname = meta:get_string("player");
 	minesweeper.games[pname] = {pos=pos}; -- position of gameblock
 	meta:set_int("mines", mines); -- remaining mines
-	meta:set_string("infotext", "Minesweeper game started, there are ".. mines .. " mines. Mark all mines by double punch from distance. Mark area as safe by standing over it and punching. When you are done punch gameblock.");
+	meta:set_string("infotext", "Minesweeper game started by "..pname..", there are ".. mines .. " mines. Mark all mines by double punch from distance. Mark area as safe by standing over it and punching. When you are done punch gameblock.");
 	minetest.chat_send_player(pname, "game: Minesweeper game started");
 	
 end
@@ -197,28 +202,33 @@ local punch_minesweep = function(pos, node, puncher, pointed_thing)
 		 meta:set_int("t",t1);
 		
 		local ppos = puncher:getpos(); -- player position
-		dist = math.sqrt((ppos.x-pos.x)^2+(ppos.y-pos.y)^2+(ppos.z-pos.z)^2);
-		if dist> 1 then -- just probe, count mines
-			local mines = 0;
-			for i = -1,1 do
-				for j = -1,1 do
-					local mmeta = minetest.get_meta({x=pos.x+i,y=pos.y,z=pos.z+j});
-					if mmeta:get_int("mine") == 1 then mines = mines +1 end
-				end
+		--dist = math.sqrt((ppos.x-pos.x)^2+(ppos.y-pos.y)^2+(ppos.z-pos.z)^2);
+		
+		local mines = 0;
+		for i = -1,1 do
+			for j = -1,1 do
+				local mmeta = minetest.get_meta({x=pos.x+i,y=pos.y,z=pos.z+j});
+				if mmeta:get_int("mine") == 1 then mines = mines +1 end
 			end
+		end
 			--minetest.chat_send_player(name, "Found " .. mines .. " nearby mines. Punch 2x to mark mine")
-			meta:set_string("infotext", "found ".. mines .. " nearby mines")
-		else -- marking blocks as safe?
-			if meta:get_int("mine")==1 then
-				minetest.chat_send_all("games: BOOM! ".. name .. " has stepped on mine ")  
-				minetest.swap_node(pos,{name = "games:markmine"})
-				local gmeta =  minetest.get_meta(gpos);
-				local pname = gmeta:get_string("player");
-				minesweeper.games[pname]=nil; -- end game
-				return
-			end
+		meta:set_string("infotext", "found ".. mines .. " nearby mines")
+		
+		 -- try mark block as safe?
+		if meta:get_int("mine")==1 then
+			minetest.chat_send_all("games: BOOM! ".. name .. " has stepped on mine ")  
+			minetest.swap_node(pos,{name = "games:markmine"})
+			puncher:setpos({x=gpos.x,y=gpos.y+1,z=gpos.z});
+			local gmeta =  minetest.get_meta(gpos);
+			local pname = gmeta:get_string("player");
+			minesweeper.games[name]=nil; -- end game
+			gmeta:set_string("player","");
+			return
+		else
 			minetest.swap_node(pos,{name = "default:dirt_with_grass"})
 		end
+			
+		
 		
 		
 end
